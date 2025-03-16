@@ -1,10 +1,13 @@
-﻿namespace EasyBackup;
+﻿using static EasyBackup.ConsoleEx;
+using static System.ConsoleColor;
+
+namespace EasyBackup;
 
 // ========================================================
 /// <summary>
 /// Program entry point.
 /// </summary>
-internal class Program
+internal partial class Program
 {
     /// <summary>
     /// Program entry point.
