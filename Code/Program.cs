@@ -9,6 +9,9 @@ namespace EasyBackup;
 /// </summary>
 internal partial class Program
 {
+    internal static string? ThisFolderDebugMode = null;
+    internal static string? ThisNameDebugMode = null;
+
     internal static string ThisFolder { get; private set; } = default!;
     internal static string ThisName { get; private set; } = default!;
     internal static string Destination { get; private set; } = default!;
@@ -27,36 +30,47 @@ internal partial class Program
     {
         ParseOptions(args);
 
-        // Easy cases...
-        if (args.Length == 0 || IsHelp)
-        {
-            Help();
-            return;
-        }
-
-        // Capturing...
-        ThisFolder = CaptureThisFolder();
-        ThisName = CaptureThisName();
-        Destination = CaptureDestination(args[0]);
-
-        // Presenting start-up information...
-        WriteLine();
-        WriteLine(Green, "Source:");
-        Write(Green, "\tFolder:\t"); WriteLine(ThisFolder);
-        Write(Green, "\tName:\t"); WriteLine(ThisName);
-
-        WriteLine();
-        Write(Green, "Destination:\t"); WriteLine(Destination);
-
-        // Executing...
         try
         {
+            if (args.Length == 0 || IsHelp) Help();
+            else
+            {
+                ThisFolder = CaptureThisFolder();
+                ThisName = CaptureThisName();
+                Destination = CaptureDestination(args[0]);
+
+                Logs.Add($"EasyBackup started at: {DateTime.Now}, local time.");
+                Logs.Add($"From source:    {ThisFolder}");
+                Logs.Add($"To destination: {Destination}");
+                Logs.Add($"");
+
+                WriteLine();
+                WriteLine(Green, "Source:");
+                Write(Green, "\tFolder:\t"); WriteLine(ThisFolder);
+                Write(Green, "\tName:\t"); WriteLine(ThisName);
+
+                WriteLine();
+                Write(Green, "Destination:\t"); WriteLine(Destination);
+
+                WriteLine();
+                Execute(ThisFolder, Destination, RunMode.Add);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logs.Add("");
+            Logs.Add(ex.ToDisplayString());
+            Logs.Add("");
+
             WriteLine();
-            Execute(ThisFolder, Destination, false);
+            WriteLine(Red, ex.ToDisplayString());
         }
         finally
         {
-            var name = $"{ThisFolder}{ThisName}.log";
+            Logs.Add("");
+            Logs.Add("-- End of log file --");
+
+            var name = $"{ThisFolder}\\EasyBackup.log";
 
             using var writer = new StreamWriter(name, false);
             foreach (var item in Logs) writer.WriteLine(item);
@@ -72,85 +86,45 @@ internal partial class Program
     // ----------------------------------------------------
 
     /// <summary>
-    /// Logs the message.
-    /// </summary>
-    /// <param name="message"></param>
-    /// <param name="args"></param>
-    static void AddLog(string message, params object?[] args)
-    {
-        args ??= [];
-        if (args.Length > 0) message = string.Format(message, args);
-
-        Logs.Add(message);
-    }
-
-    /// <summary>
-    /// Logs the message and writes it to the console with the given color.
-    /// </summary>
-    /// <param name="color"></param>
-    /// <param name="message"></param>
-    /// <param name="args"></param>
-    static void AddLog(ConsoleColor color, string message, params object?[] args)
-    {
-        args ??= [];
-        if (args.Length > 0) message = string.Format(message, args);
-
-        Logs.Add(message);
-        WriteLine(color, message);
-    }
-
-    // ----------------------------------------------------
-
-    /// <summary>
-    /// Log the given exception.
-    /// </summary>
-    /// <param name="ex"></param>
-    static void AddLog(Exception ex)
-    {
-        var temp = ex.ToDisplayString();
-        Logs.Add(temp);
-    }
-
-    /// <summary>
-    /// Logs the message and writes it to the console with the given color.
-    /// </summary>
-    /// <param name="color"></param>
-    /// <param name="ex"></param>
-    static void AddLog(ConsoleColor color, Exception ex)
-    {
-        var temp = ex.ToDisplayString();
-        Logs.Add(temp);
-        Write(color, temp);
-    }
-
-    // ----------------------------------------------------
-
-    /// <summary>
-    /// Captures the path from where this program is running.
+    /// Captures the path from where this program is running. The returned string is guaranteed
+    /// to end with a terminator.
     /// </summary>
     /// <returns></returns>
     static string CaptureThisFolder()
     {
-        var dir = AppContext.BaseDirectory;
-        if (!dir.EndsWith('\\')) dir += '\\';
-        return dir;
+        if (ThisFolderDebugMode == null)
+        {
+            var dir = AppContext.BaseDirectory;
+            if (!dir.EndsWith('\\')) dir += '\\';
+            return dir;
+        }
+        else return ThisFolderDebugMode;
     }
 
     /// <summary>
-    /// Captures the actual name of this running program.
+    /// Captures the actual name of this running program. May throw an exception.
     /// </summary>
     /// <returns></returns>
     static string CaptureThisName()
     {
-        var name = Assembly.GetExecutingAssembly().GetName().Name;
-        if (name == null)
+        if (ThisNameDebugMode == null)
         {
-            WriteLine(Red, "Cannot capture the name of this running program.");
-            Environment.Exit(1);
-        }
+            var name = Assembly.GetExecutingAssembly().GetName().Name;
+            if (name == null)
+            {
+                var str = "Cannot capture the name of this running program.";
 
-        return name!;
+                Logs.Add(str);
+                WriteLine(Red, str);
+                throw new FileNotFoundException(str);
+            }
+
+            return name!;
+        }
+        else return ThisNameDebugMode;
     }
+
+    // ----------------------------------------------------
 
     /// <summary>
     /// Captures the full path of the destination.
@@ -160,8 +134,11 @@ internal partial class Program
     {
         if (!Directory.Exists(temp))
         {
+            var str = $"Root destination does not exist: '{temp}'";
+            Logs.Add(str);
+
             Write(Red, $"Root destination does not exist: '"); Write(temp); WriteLine(Red, "'");
-            Environment.Exit(1);
+            throw new DirectoryNotFoundException(str);
         }
 
         temp = Path.GetFullPath(temp);

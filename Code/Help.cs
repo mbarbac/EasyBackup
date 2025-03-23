@@ -14,8 +14,8 @@ internal partial class Program
         WriteLine();
         Write(Green, """
             Creates a backup from the folder where this program is located to the destination one given as its
-            first argument. Due to this behavior, it is strongly discouraged to place this program in any global
-            search path (as C:\Windows).
+            first argument. Due to this behavior, please do not place this program in any global search path
+            (as C:\Windows or similar ones).
 
             Syntax: 
             """);

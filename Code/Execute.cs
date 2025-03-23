@@ -7,77 +7,98 @@ namespace EasyBackup;
 internal partial class Program
 {
     /// <summary>
-    /// Calculates and executes the appropriate actions considering the given source and target
-    /// folders, whose full paths are given. If the delete flag is set, then no calculations are
-    /// done and the destination folder is deleted along with all its contents, recursively.
+    /// Executes the appropriate actions considering the given source and destination folders,
+    /// whose FULL paths shall be given, unless a not default run mode is specified, in which
+    /// case just executes its actions.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="destination"></param>
+    /// <param name="mode"></param>
+    static void Execute(string source, string destination, RunMode mode = RunMode.Compute)
+    {
+        switch (mode)
+        {
+            case RunMode.Add: ExecuteAdd(source, destination); return;
+            case RunMode.Delete: ExecuteDelete(destination); return;
+        }
+
+        WriteLine("Execute: Pending...");
+    }
+
+    // ----------------------------------------------------
+
+    /// <summary>
+    /// Inconditionally add the contents of the source directory to the destination one, whose
+    /// FULL paths shall be given.
     /// </summary>
     /// <param name="source"></param>
     /// <param name="target"></param>
-    /// <param name="delete"></param>
-    static void Execute(string source, string target, bool delete)
+    static void ExecuteAdd(string source, string target)
     {
-        var root = string.Compare(ThisFolder, source, StringComparison.OrdinalIgnoreCase);
+        var sourceinfo = new DirectoryInfo(source);
+        if (!sourceinfo.Exists) throw new DirectoryNotFoundException($"Source not found: '{target}'");
 
-        var sdir = new DirectoryInfo(source);
-        var tdir = new DirectoryInfo(target);
+        var targetinfo = new DirectoryInfo(target);
+        if (!targetinfo.Exists) Directory.CreateDirectory(targetinfo.FullName);
 
-        if (!sdir.Exists)
+        if (!source.EndsWith('\\')) source = source + "\\";
+        if (!target.EndsWith('\\')) target = target + "\\";
+
+        Logs.Add($"Adding from: '{source}' to '{target}'");
+        Write(Green, "Adding from: '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
+        WriteLine(Green, "'");
+
+        // Source files...
+        var files = sourceinfo.GetFiles();
+        foreach (var file in files)
         {
-            AddLog(Red, $"Source directory '{source}' doesn't exist.");
-            return;
+            Logs.Add($"Adding file: '{file.FullName}'");
+            Write(Green, "Adding file: '"); Write(file.FullName); WriteLine(Green, "'");
+
+            var destination = $"{target}{file.Name}";
+            if (!IsEmulate) File.Copy(file.FullName, destination, true);
         }
 
-        // Delete case...
-        if (delete)
+        // Child folders...
+        var dirs = sourceinfo.GetDirectories();
+        foreach (var dir in dirs)
         {
-            if (!tdir.Exists) // This is easy although suspicious, let's log...
-            {
-                AddLog($"Target directory '{target}' cannot be delete because it doesn't exist.");
-                return;
-            }
+            var xsource = source + dir.Name;
+            var xtarget = target + dir.Name;
+            ExecuteAdd(xsource, xtarget);
+        }
+    }
 
-            Write(Green, "Deleting: "); WriteLine(target);
+    // ----------------------------------------------------
 
-            // Files in this folder...
-            var files = tdir.GetFiles();
-            foreach (var file in files)
-            {
-                Write(Green, "Deleting: "); WriteLine(file.FullName);
-                try
-                {
-                    // if (!IsEmulate) file.Delete();
-                }
-                catch (Exception ex)
-                {
-                    AddLog(Red, $"Cannot delete file: {file.FullName}");
-                    AddLog(Red, ex.ToDisplayString());
-                    Environment.Exit(1);
-                }
-            }
+    /// <summary>
+    /// Inconditionally deletes the destination folder, whose FULL path shall be given, and all
+    /// its contents.
+    /// </summary>
+    /// <param name="target"></param>
+    static void ExecuteDelete(string target)
+    {
+        var info = new DirectoryInfo(target);
+        if (!info.Exists) throw new DirectoryNotFoundException($"Destination not found: {target}");
 
-            // Sub-folders...
-            var dirs = tdir.GetDirectories();
-            foreach (var dir in dirs) Execute(source, tdir.FullName, true);
+        Logs.Add($"Deleting folder: {target}");
+        Write(Magenta, "Deleting folder: "); WriteLine(target);
 
-            // Finally this folder itself...
-            try
-            {
-                // if (!IsEmulate) tdir.Delete();
-            }
-            catch (Exception ex)
-            {
-                AddLog(Red, $"Cannot delete directory: {tdir.FullName}");
-                AddLog(Red, ex.ToDisplayString());
-                Environment.Exit(1);
-            }
+        // Files in the given folder...
+        var files = info.GetFiles();
+        foreach (var file in files)
+        {
+            Logs.Add($"Deleting file:   {file.FullName}");
+            Write(Blue, "Deleting file:   "); WriteLine(file.FullName);
 
-            // And do not forget to return...
-            return;
+            if (!IsEmulate) file.Delete();
         }
 
-        // Computing options...
-        else
-        {
-        }
+        // Child folders...
+        var dirs = info.GetDirectories();
+        foreach (var dir in dirs) Execute(string.Empty, dir.FullName, RunMode.Delete);
+
+        // This folder...
+        if (!IsEmulate) info.Delete();
     }
 }

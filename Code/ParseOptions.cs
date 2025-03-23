@@ -18,6 +18,12 @@ internal partial class Program
 
             switch (args[i])
             {
+                case "-s":
+                    var str = args[++i];
+                    ThisFolderDebugMode = Path.GetDirectoryName(str);
+                    ThisNameDebugMode = Path.GetFileName(str);
+                    break;
+
                 case "-h":
                 case "-help":
                     IsHelp = true;
