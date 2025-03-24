@@ -53,7 +53,7 @@ internal partial class Program
                 Write(Green, "Destination:\t"); WriteLine(Destination);
 
                 WriteLine();
-                Execute(ThisFolder, Destination, RunMode.Add);
+                ExecuteFolder(ThisFolder, Destination);
             }
         }
         catch (Exception ex)
@@ -70,7 +70,7 @@ internal partial class Program
             Logs.Add("");
             Logs.Add("-- End of log file --");
 
-            var name = $"{ThisFolder}\\EasyBackup.log";
+            var name = $"{AddTerminator(ThisFolder)}EasyBackup.log";
 
             using var writer = new StreamWriter(name, false);
             foreach (var item in Logs) writer.WriteLine(item);
@@ -95,7 +95,7 @@ internal partial class Program
         if (ThisFolderDebugMode == null)
         {
             var dir = AppContext.BaseDirectory;
-            if (!dir.EndsWith('\\')) dir += '\\';
+            dir = AddTerminator(dir);
             return dir;
         }
         else return ThisFolderDebugMode;
@@ -143,5 +143,18 @@ internal partial class Program
 
         temp = Path.GetFullPath(temp);
         return temp;
+    }
+
+    // ----------------------------------------------------
+
+    /// <summary>
+    /// Returns the given folder name having guaranteed it ends with a terminator.
+    /// </summary>
+    /// <param name="str"></param>
+    /// <returns></returns>
+    static string AddTerminator(string str)
+    {
+        if (!str.EndsWith('\\')) str += '\\';
+        return str;
     }
 }
