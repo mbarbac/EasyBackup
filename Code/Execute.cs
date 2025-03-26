@@ -1,5 +1,4 @@
-﻿using System.Transactions;
-using static EasyBackup.ConsoleEx;
+﻿using static EasyBackup.ConsoleEx;
 using static System.ConsoleColor;
 
 namespace EasyBackup;
@@ -121,12 +120,37 @@ internal partial class Program
                 return;
             }
 
-            // Files...
+            var comparison = StringComparison.OrdinalIgnoreCase;
+
+            // Child files...
+            var sfiles = sinfo.GetFiles();
+            var tfiles = tinfo.GetFiles().ToList();
+
+            foreach (var sfile in sfiles) // Source files...
+            {
+                var tfile = tfiles.FirstOrDefault(x => string.Compare(sfile.Name, sfile.Name, comparison) == 0);
+                if (tfile == null)
+                {
+                    // No target file, just copy the source...
+                    var destination = $"{AddTerminator(target)}{sfile.Name}";
+                    AddOrUpdateFile(sfile, destination);
+                }
+                else
+                {
+                    // Comparing both files...
+                    if (CompareFiles(sfile, tfile)) continue;
+                    AddOrUpdateFile(sfile, tfile.FullName);
+                }
+            }
+
+            foreach (var tfile in tfiles) // Deleting remaining target files...
+            {
+                DeleteFile(tfile);
+            }
 
             // Child folders...
             var sdirs = sinfo.GetDirectories();
             var tdirs = tinfo.GetDirectories().ToList();
-            var comparison = StringComparison.OrdinalIgnoreCase;
 
             foreach (var sdir in sdirs) // Source childs...
             {
@@ -136,9 +160,13 @@ internal partial class Program
                     // No target child, inconditional add from source child...
                     var destination = $"{AddTerminator(target)}{sdir.Name}";
                     ExecuteFolder(sdir.FullName, destination, RunMode.Add);
-                    continue;
                 }
-                else DoCommand(() => tdirs.Remove(tdir));
+                else
+                {
+                    // Both exist, let's compare their contents...
+                    var destination = $"{AddTerminator(target)}{tdir.Name}";
+                    ExecuteFolder(sdir.FullName, destination);
+                }
             }
 
             foreach (var tdir in tdirs) // Deleting remaining target childs...
@@ -165,6 +193,49 @@ internal partial class Program
         }
 
         if (!IsEmulate) DoCommand(() => target.Delete());
+    }
+
+    // ----------------------------------------------------
+
+    // Two common buffer of 1 MB each...
+    const int BufferSize = 1024 * 1024;
+    static byte[] SourceBuffer = new byte[BufferSize];
+    static byte[] TargetBuffer = new byte[BufferSize];
+
+    /// <summary>
+    /// Invoked to determine if the two given files shall be considered equal or not.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="target"></param>
+    /// <returns></returns>
+    static bool CompareFiles(FileInfo source, FileInfo target)
+    {
+        // If source last write is recent, let's copy source over target...
+        var slastmod = source.LastWriteTime;
+        var tlastmod = target.LastWriteTime;
+        if (slastmod > tlastmod) return false;
+
+        // If different size, they are obviously not equivalent...
+        if (source.Length != target.Length) return false;
+
+        // If any byte is different, lthey are not equivalent...
+        Array.Clear(SourceBuffer, 0, BufferSize);
+        Array.Clear(TargetBuffer, 0, BufferSize);
+        int nsource;
+        int ntarget;
+
+        using var sstream = source.OpenRead();
+        using var tstream = target.OpenRead();
+
+        while (
+            (nsource = sstream.Read(SourceBuffer, 0, BufferSize)) > 0 &&
+            (ntarget = tstream.Read(TargetBuffer, 0, BufferSize)) > 0)
+        {
+            if (nsource != ntarget || !SourceBuffer.SequenceEqual(TargetBuffer)) return false;
+        }
+
+        // Finally, we'll assume both are equivalent (we don't check internal streams)...
+        return true;
     }
 
     // ----------------------------------------------------
