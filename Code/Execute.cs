@@ -44,14 +44,14 @@ internal partial class Program
     /// <param name="mode"></param>
     static void ExecuteFolder(string source, string target, RunMode mode = RunMode.Compute)
     {
-        var sinfo = new DirectoryInfo(source);
-        var tinfo = new DirectoryInfo(target);
-
         /// <summary>
         /// Inconditional add mode...
         /// </summary>
         if (mode == RunMode.Add)
         {
+            var sinfo = new DirectoryInfo(source);
+            var tinfo = new DirectoryInfo(target);
+
             Logs.Add($"Adding from: '{source}' to '{target}'");
             Write(Green, "Adding from: '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
             WriteLine(Green, "'");
@@ -81,18 +81,20 @@ internal partial class Program
         /// </summary>
         else if (mode == RunMode.Delete)
         {
+            var tinfo = new DirectoryInfo(target);
+
             Logs.Add($"Deleting folder: '{target}'");
             Write(Green, "Deleting folder: '"); Write(target); WriteLine(Green, "'");
 
             if (!tinfo.Exists) throw new DirectoryNotFoundException($"Target not found: '{tinfo}'");
 
-            var files = sinfo.GetFiles();
+            var files = tinfo.GetFiles();
             foreach (var file in files)
             {
                 DoCommand(() => DeleteFile(file));
             }
 
-            var dirs = sinfo.GetDirectories();
+            var dirs = tinfo.GetDirectories();
             foreach (var dir in dirs)
             {
                 var destination = $"{AddTerminator(target)}{dir.Name}";
@@ -108,6 +110,9 @@ internal partial class Program
         /// </summary>
         else
         {
+            var sinfo = new DirectoryInfo(source);
+            var tinfo = new DirectoryInfo(target);
+
             Logs.Add($"Comparing '{source}' to '{target}'");
             Write(Green, "Comparing '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
             WriteLine(Green, "'");
@@ -128,7 +133,7 @@ internal partial class Program
 
             foreach (var sfile in sfiles) // Source files...
             {
-                var tfile = tfiles.FirstOrDefault(x => string.Compare(sfile.Name, sfile.Name, comparison) == 0);
+                var tfile = tfiles.FirstOrDefault(x => string.Compare(sfile.Name, x.Name, comparison) == 0);
                 if (tfile == null)
                 {
                     // No target file, just copy the source...
@@ -138,8 +143,8 @@ internal partial class Program
                 else
                 {
                     // Comparing both files...
-                    if (CompareFiles(sfile, tfile)) continue;
-                    AddOrUpdateFile(sfile, tfile.FullName);
+                    if (!CompareFiles(sfile, tfile)) AddOrUpdateFile(sfile, tfile.FullName);
+                    tfiles.Remove(tfile);
                 }
             }
 
@@ -166,6 +171,7 @@ internal partial class Program
                     // Both exist, let's compare their contents...
                     var destination = $"{AddTerminator(target)}{tdir.Name}";
                     ExecuteFolder(sdir.FullName, destination);
+                    tdirs.Remove(tdir);
                 }
             }
 
@@ -254,9 +260,7 @@ internal partial class Program
             Write(Yellow, "Adding file: '"); Write(source.FullName); WriteLine(Green, "'");
         }
 
-        target = AddTerminator(target);
-        var destination = $"{target}{source.Name}";
-        if (!IsEmulate) DoCommand(() => File.Copy(source.FullName, destination, true));
+        if (!IsEmulate) DoCommand(() => File.Copy(source.FullName, target, true));
     }
 
     /// <summary>

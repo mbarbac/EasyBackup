@@ -2,7 +2,7 @@
   "profiles": {
     "EasyBackup": {
       "commandName": "Project",
-      "commandLineArgs": "c:\\temp\\destination\r\n-s c:\\temp\\source\\easybackup.exe\r\n-e"
+      "commandLineArgs": "c:\\temp\\destination\r\n-s c:\\temp\\source\\easybackup.exe"
     }
   }
 }
