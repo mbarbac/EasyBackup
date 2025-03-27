@@ -1,4 +1,5 @@
-﻿using static EasyBackup.ConsoleEx;
+﻿using System.IO.MemoryMappedFiles;
+using static EasyBackup.ConsoleEx;
 using static System.ConsoleColor;
 
 namespace EasyBackup;
@@ -31,7 +32,7 @@ internal partial class Program
             }
         }
     }
-    
+
     // ----------------------------------------------------
 
     /// <summary>
@@ -52,9 +53,9 @@ internal partial class Program
             var sinfo = new DirectoryInfo(source);
             var tinfo = new DirectoryInfo(target);
 
-            Logs.Add($"Adding from: '{source}' to '{target}'");
-            Write(Green, "Adding from: '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
-            WriteLine(Green, "'");
+            //Logs.Add($"Adding from: '{source}' to '{target}'");
+            //Write(Green, "Adding from: '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
+            //WriteLine(Green, "'");
 
             if (!sinfo.Exists) throw new DirectoryNotFoundException($"Source not found: '{source}'");
             if (!tinfo.Exists) Directory.CreateDirectory(tinfo.FullName);
@@ -83,8 +84,8 @@ internal partial class Program
         {
             var tinfo = new DirectoryInfo(target);
 
-            Logs.Add($"Deleting folder: '{target}'");
-            Write(Green, "Deleting folder: '"); Write(target); WriteLine(Green, "'");
+            //Logs.Add($"Deleting folder: '{target}'");
+            //Write(Magenta, "Deleting folder: '"); Write(target); WriteLine(Green, "'");
 
             if (!tinfo.Exists) throw new DirectoryNotFoundException($"Target not found: '{tinfo}'");
 
@@ -113,9 +114,9 @@ internal partial class Program
             var sinfo = new DirectoryInfo(source);
             var tinfo = new DirectoryInfo(target);
 
-            Logs.Add($"Comparing '{source}' to '{target}'");
-            Write(Green, "Comparing '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
-            WriteLine(Green, "'");
+            //Logs.Add($"Comparing '{source}' to '{target}'");
+            //Write(Green, "Comparing '"); Write(source); Write(Green, "' to: '"); Write($"{target}");
+            //WriteLine(Green, "'");
 
             if (!sinfo.Exists) throw new DirectoryNotFoundException($"Source not found: '{source}'");
             if (!tinfo.Exists)
@@ -195,7 +196,7 @@ internal partial class Program
         if (log)
         {
             Logs.Add($"Deleting folder: {target.FullName}");
-            Write(Magenta, "Deleting folder: '"); Write(target.FullName); WriteLine(Green, "'");
+            Write(Magenta, "Deleting folder: '"); Write(target.FullName); WriteLine(Magenta, "'");
         }
 
         if (!IsEmulate) DoCommand(() => target.Delete());
@@ -254,14 +255,39 @@ internal partial class Program
     /// <param name="log"></param>
     static void AddOrUpdateFile(FileInfo source, string target, bool log = true)
     {
+        var file = new FileInfo(target);
+        var desc = file.Exists ? "Updating" : "Adding";
+
         if (log)
         {
-            Logs.Add($"Adding file: {source.FullName}");
-            Write(Yellow, "Adding file: '"); Write(source.FullName); WriteLine(Green, "'");
+            Logs.Add($"{desc} file: {source.FullName}");
+            Write(Yellow, $"{desc} file: '"); Write(source.FullName); WriteLine(Yellow, "'");
         }
 
-        if (!IsEmulate) DoCommand(() => File.Copy(source.FullName, target, true));
+        //if (!IsEmulate) DoCommand(() => File.Copy(source.FullName, target, true));
+
+        if (!IsEmulate) DoCommand(() =>
+        {
+            File.Copy(source.FullName, target, true);
+
+            using var str = file.Open(FileMode.Open, FileAccess.ReadWrite);
+            using var handle = str.SafeFileHandle;
+
+            var date = source.CreationTime; File.SetCreationTime(handle, date);
+            date = source.LastAccessTime; File.SetLastAccessTime(handle, date);
+            date = source.LastWriteTime; File.SetLastWriteTime(handle, date);
+        });
     }
+    /*
+     public static class FileInfoExtensions
+{
+    public static IntPtr GetFileHandle(this FileInfo fileInfo, FileAccess fileAccess = FileAccess.Read)
+    {
+        var fileStream = fileInfo.Open(fileAccess);
+        return fileStream.SafeFileHandle.DangerousGetHandle();
+    }
+}
+     */
 
     /// <summary>
     /// Deletes the given target file.
