@@ -22,6 +22,10 @@ internal partial class Program
 
         WriteLine("EasyBackup destination [-f|-fast] [-e|-emulate] [-h|-help]");
 
+        // [-s <SourceFolder> <ProgramName>]: used to specify the source folder and program name,
+        // essentially used to specify IDE parameters for debug mode instead of the grabbing them
+        // by the program.
+
         WriteLine();
         WriteLine(Green, """
             If the destination folder does not exist, then an error is displayed. Once validated, the program

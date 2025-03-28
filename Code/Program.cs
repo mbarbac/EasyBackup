@@ -11,6 +11,7 @@ internal partial class Program
 {
     internal static string? ThisFolderDebugMode = null;
     internal static string? ThisNameDebugMode = null;
+    internal static DateTime LocalTime = DateTime.Now;
 
     internal static string ThisFolder { get; private set; } = default!;
     internal static string ThisName { get; private set; } = default!;
