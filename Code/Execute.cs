@@ -188,7 +188,7 @@ internal partial class Program
                 ExecuteFolder("", destination, RunMode.Delete);
             }
 
-
+            // Finishing...
             return;
         }
 
@@ -196,7 +196,7 @@ internal partial class Program
         /// Tries to execute the given action at most the given amount of times, and waiting at
         /// most the given milliseconds between retries. If no success, throws the last exception.
         /// </summary>
-        static void TryCommand(Action action, int max = 3, int waitms = 100)
+        static void TryCommand(Action action, int max = 3, int waitms = 150)
         {
             if (max < 1) max = 1;
             if (waitms < 10) waitms = 10;
